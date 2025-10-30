@@ -259,6 +259,12 @@ int LogAudit::logPrint(const char* fmt, ...) {
         writev(fdDmesg, iov, arraysize(iov));
     }
 
+   // Hide procfs related audit messages from appdomain to prevent selinux context leak
+    if (uid >= AID_APP_START && strstr(str, "dev=\"proc\"")) {
+        free(str);
+        return 0;
+    }
+
     if (!main && !events) {
         free(str);
         return 0;
