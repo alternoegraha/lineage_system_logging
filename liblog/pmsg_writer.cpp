@@ -23,13 +23,15 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <atomic>
+
 #include <log/log_properties.h>
 #include <private/android_logger.h>
 
 #include "logger.h"
 #include "uio.h"
 
-static atomic_int pmsg_fd;
+static std::atomic<int> pmsg_fd;
 
 static void GetPmsgFd() {
   // Note if open() fails and returns -1, that value is stored into pmsg_fd as an indication that

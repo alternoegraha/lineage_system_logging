@@ -1087,6 +1087,13 @@ int android_log_processBinaryLogBuffer(
   return result;
 }
 
+void appendHexEscape(char* dst, unsigned char b) {
+  *dst++ = '\\';
+  *dst++ = 'x';
+  *dst++ = "0123456789ABCDEF"[(b >> 4) & 0xf];
+  *dst++ = "0123456789ABCDEF"[(b >> 0) & 0xf];
+}
+
 /*
  * Convert to printable from src to dst buffer, returning dst bytes used.
  * If dst is NULL, do not copy, but still return the dst bytes required.
@@ -1101,7 +1108,10 @@ size_t convertPrintable(char* dst0, const char* src0, size_t n) {
   while (n > 0) {
     // ASCII fast path to cover most logging; space and tab aren't escaped,
     // but backslash is.
-    if ((*src >= ' ' && *src < 0x7f && *src != '\\') || *src == '\t') {
+    // Since this expression is more complex than the others,
+    // we have to tell the compiler this is the likely case;
+    // otherwise it moves the uncommon (but simpler) cases first.
+    if (__builtin_expect((*src >= ' ' && *src < 0x7f && *src != '\\') || *src == '\t', 1)) {
       if (print) *dst = *src;
       dst++;
       src++;
@@ -1122,7 +1132,7 @@ size_t convertPrintable(char* dst0, const char* src0, size_t n) {
     }
     // Unprintable fast path #2: everything else below space, plus DEL.
     if (*src < ' ' || *src == 0x7f) {
-      if (print) sprintf(dst, "\\x%02X", *src);
+      if (print) appendHexEscape(dst, *src);
       dst += 4;
       src++;
       n--;
@@ -1138,7 +1148,7 @@ size_t convertPrintable(char* dst0, const char* src0, size_t n) {
       n -= len;
     } else {
       // Assume it's just one bad byte, and try again after escaping it.
-      if (print) sprintf(dst, "\\x%02X", *src);
+      if (print) appendHexEscape(dst, *src);
       dst += 4;
       src++;
       n--;

@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
 
     int fdPmesg = -1;
     bool klogd_default =
-            GetBoolProperty("ro.debuggable", false) && !GetBoolProperty("ro.config.low_ram", false);
+            ANDROID_DEBUGGABLE && !GetBoolProperty("ro.config.low_ram", false);
     bool klogd = GetBoolProperty("ro.logd.kernel", klogd_default);
     if (klogd) {
         SetProperty("ro.logd.kernel", "true");

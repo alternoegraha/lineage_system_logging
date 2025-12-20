@@ -63,7 +63,9 @@ typedef struct AndroidLogEntry_t {
   int32_t tid;
   const char* tag;
   size_t tagLen;
+  // Message length does not include the null terminator in "message".
   size_t messageLen;
+  // Must be null terminated.
   const char* message;
 } AndroidLogEntry;
 
