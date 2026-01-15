@@ -44,7 +44,17 @@ cc_defaults {
     cflags: [
         "-Wextra",
         "-Wthread-safety",
+        "-DANDROID_DEBUGGABLE=0",
     ] + event_flag,
+
+    product_variables: {
+        debuggable: {
+            cflags: [
+                "-UANDROID_DEBUGGABLE",
+                "-DANDROID_DEBUGGABLE=1",
+            ],
+        },
+    },
 
     lto: {
         thin: true,
