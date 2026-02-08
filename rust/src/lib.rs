@@ -97,7 +97,7 @@ pub fn init(config: Config) -> bool {
 
         builder.format(move |f, r| {
             let formatted = custom_format(r);
-            writeln!(f, "{}", formatted)
+            writeln!(f, "{formatted}")
         });
     }
     if let Some(filter_str) = config.filter {
@@ -127,7 +127,7 @@ pub fn init(config: Config) -> bool {
     if let Some(custom_format) = config.custom_format {
         builder = builder.format(move |f, r| {
             let formatted = custom_format(r);
-            write!(f, "{}", formatted)
+            write!(f, "{formatted}")
         });
     }
     if let Some(filter_str) = config.filter {

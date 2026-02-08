@@ -96,19 +96,6 @@ int android_log_addFilterRule(AndroidLogFormat* p_format,
                               const char* filterExpression);
 
 /**
- * filterString: a whitespace-separated set of filter expressions
- * eg "AT:d *:i"
- *
- * returns 0 on success and -1 on invalid expression
- *
- * Assumes single threaded execution
- *
- */
-
-int android_log_addFilterString(AndroidLogFormat* p_format,
-                                const char* filterString);
-
-/**
  * returns 1 if this log line should be printed based on its priority
  * and tag, and 0 if it should not
  */

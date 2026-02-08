@@ -191,10 +191,10 @@ ssize_t __android_log_pmsg_file_write(log_id_t logId, char prio, const char* fil
   struct iovec vec[3];
 
   /* Make sure the logId value is not a bad idea */
-  if ((logId == LOG_ID_KERNEL) ||   /* Verbotten */
+  if ((logId == LOG_ID_KERNEL) ||   /* We are not the kernel */
       (logId == LOG_ID_EVENTS) ||   /* Do not support binary content */
       (logId == LOG_ID_SECURITY) || /* Bad idea to allow */
-      ((unsigned)logId >= 32)) {    /* fit within logMask on arch32 */
+      ((unsigned)logId >= 32)) {    /* Must fit in logMask's uint32_t */
     return -EINVAL;
   }
 

@@ -43,6 +43,9 @@
 #include <log/event_tag_map.h>
 #include <log/log.h>
 #include <log/log_event_list.h>
+#include <log/logprint.h>
+
+#include "logcat_utils.h"
 
 #ifndef logcat_executable
 #define USING_LOGCAT_EXECUTABLE_DEFAULT
@@ -1464,10 +1467,7 @@ TEST(logcat, maxcount) {
 }
 
 static bool End_to_End(const char* tag, const char* fmt, ...)
-#if defined(__GNUC__)
-    __attribute__((__format__(printf, 2, 3)))
-#endif
-    ;
+    __attribute__((__format__(printf, 2, 3)));
 
 static bool End_to_End(const char* tag, const char* fmt, ...) {
     FILE* fp = popen(logcat_executable " -v brief -b events -v descriptive -t 100 2>/dev/null", "r");
@@ -1764,4 +1764,80 @@ TEST(logcat, uid_filter) {
     UidsInLog(top2_uids, uids_only_top2);
 
     EXPECT_EQ(2U, uids_only_top2.size());
+}
+
+static bool checkPriForTag(AndroidLogFormat* p_format, const char* tag,
+                           android_LogPriority pri) {
+  return android_log_shouldPrintLine(p_format, tag, pri) &&
+         !android_log_shouldPrintLine(p_format, tag,
+                                      (android_LogPriority)(pri - 1));
+}
+
+TEST(logcat, filterRule) {
+  static const char tag[] = "random";
+
+  std::unique_ptr<AndroidLogFormat, decltype(&android_log_format_free)> f{android_log_format_new(),
+                                                                          &android_log_format_free};
+  android_log_addFilterRule(f.get(), "*:i");
+
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_INFO));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) == 0);
+  android_log_addFilterRule(f.get(), "*");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_DEBUG));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) > 0);
+  android_log_addFilterRule(f.get(), "*:v");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_VERBOSE));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) > 0);
+  android_log_addFilterRule(f.get(), "*:i");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_INFO));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) == 0);
+
+  android_log_addFilterRule(f.get(), tag);
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_VERBOSE));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) > 0);
+  android_log_addFilterRule(f.get(), "random:v");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_VERBOSE));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) > 0);
+  android_log_addFilterRule(f.get(), "random:d");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_DEBUG));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) > 0);
+  android_log_addFilterRule(f.get(), "random:w");
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_WARN));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) == 0);
+
+  android_log_addFilterRule(f.get(), "crap:*");
+  EXPECT_TRUE(checkPriForTag(f.get(), "crap", ANDROID_LOG_VERBOSE));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), "crap", ANDROID_LOG_VERBOSE) > 0);
+
+  // invalid expression
+  EXPECT_TRUE(android_log_addFilterRule(f.get(), "random:z") < 0);
+  EXPECT_TRUE(checkPriForTag(f.get(), tag, ANDROID_LOG_WARN));
+  EXPECT_TRUE(android_log_shouldPrintLine(f.get(), tag, ANDROID_LOG_DEBUG) == 0);
+}
+
+TEST(logcat, addFilterString) {
+  std::unique_ptr<AndroidLogFormat, decltype(&android_log_format_free)> f{android_log_format_new(),
+                                                                          &android_log_format_free};
+  android_log_addFilterRule(f.get(), "*:i");
+
+  // Issue #550946
+  EXPECT_TRUE(addFilterString(f.get(), " "));
+  EXPECT_TRUE(checkPriForTag(f.get(), "random", ANDROID_LOG_INFO));
+
+  // note trailing space
+  EXPECT_TRUE(addFilterString(f.get(), "*:s random:d "));
+  EXPECT_TRUE(checkPriForTag(f.get(), "random", ANDROID_LOG_DEBUG));
+
+  // Invalid log severity 'z'.
+  EXPECT_FALSE(addFilterString(f.get(), "*:s random:z"));
+}
+
+TEST(logcat, addFilterString_comma_separated) {
+  std::unique_ptr<AndroidLogFormat, decltype(&android_log_format_free)> f{android_log_format_new(),
+                                                                          &android_log_format_free};
+  android_log_addFilterRule(f.get(), "*:i");
+
+  // Comma-separated rather than space-separated.
+  EXPECT_TRUE(addFilterString(f.get(), "*:s,random:d"));
+  EXPECT_TRUE(checkPriForTag(f.get(), "random", ANDROID_LOG_DEBUG));
 }
